@@ -1,6 +1,4 @@
-# CalenderApi
-
-Make for Olly
+#Google calendar CalenderApi
 
 Goal is to take a JSON file input, with the university's/wintect's semester schedule. 
 
