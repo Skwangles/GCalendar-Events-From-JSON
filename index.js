@@ -151,8 +151,8 @@ function createAndFindCalendar(auth) {
       "summary": timetableName
     }
   });
-  console.log("calling new calendar list")//-----------------------------------------------------Issue-Newly created Calendar not showing
-  
+  console.log("calling new calendar list")//-----------------------------------------------------Issue-Newly created Calendar not showing- possibly issue with async? Establish insert as a promise.
+
   authedCal.calendarList.list({
     maxResults: 10,
     minAccessRole: "owner" //makes sure it is your own personal calendar, personally tailored to you. 
