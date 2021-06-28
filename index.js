@@ -30,7 +30,7 @@ callWithAuth(listCalendars);
  * @param {Object} credentials The authorization client credentials.
  * @param {function} callback The callback to call with the authorized client.
  */
-function callWithAuth(callback){
+function callWithAuth(callback) {
   fs.readFile('credentials.json', (err, content) => {
     if (err) return console.log('Error loading client secret file:', err);
     // Authorize a client with credentials, then call the Google Calendar API.
@@ -123,20 +123,25 @@ function listCalendars(auth) {//gets and lists all calendars. Next place is to a
     if (err) return console.log('The API returned an error: ' + err);
     const cals = res.data.items;
     console.log(JSON.stringify(cals.summary));
+    var found = false;
     if (cals.length) {
+
       cals.map((calendarList, i) => {
         console.log("Looping");
         if (calendarList.summary == timetableName) {
           console.log("Found calendar");
           setGlobalCalID(calendarList);
-          return;
+          console.log("ID=" + calendarsID);
+          found = true;
         }
         console.log(`${calendarList.summary}`);
       });
-      console.log("Calendar not found!");
     }
-    console.log("Creating Calendar");
-    callWithAuth(createAndFindCalendar);//finds the created calendar
+    
+    if (!found){
+      console.log("Calendar not found - Creating Calendar");
+      callWithAuth(createAndFindCalendar);//finds the created or creates it calendar
+    }
     console.log(calendarsID);
   });
   // if (calendarsID.equals("") || id == null){
