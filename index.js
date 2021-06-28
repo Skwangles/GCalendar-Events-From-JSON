@@ -1,24 +1,28 @@
 
 //Code & setup provided by https://developers.google.com/calendar/api/quickstart/nodejs (Make sure to add yourself as test user to authenticate)
-const getC = require('./getCalendar');
+//const getC = require('./getCalendar');
 const fs = require('fs');
 const readline = require('readline');
-const {google} = require('googleapis');
+const { google } = require('googleapis');
+const { exception } = require('console');
+const timetableName = "Timetable-Wintech";
+var calendarsID;
 
 // If modifying these scopes, delete token.json.
-const SCOPES = ['https://www.googleapis.com/auth/calendar.readonly'];
+const SCOPES = ['https://www.googleapis.com/auth/calendar.readonly', 'https://www.googleapis.com/auth/calendar'];
 // The file token.json stores the user's access and refresh tokens, and is
 // created automatically when the authorization flow completes for the first
 // time.
 const TOKEN_PATH = 'token.json';
 
 // Load client secrets from a local file.
-fs.readFile('credentials.json', (err, content) => {
-  if (err) return console.log('Error loading client secret file:', err);
-  // Authorize a client with credentials, then call the Google Calendar API.
-  //authorize(JSON.parse(content), listEvents);
-  authorize(JSON.parse(content), listCalendars);//---------------------------------------------------Call Calendar list---------------------------------------
-});
+callWithAuth(listCalendars);
+// fs.readFile('credentials.json', (err, content) => {
+//   if (err) return console.log('Error loading client secret file:', err);
+//   // Authorize a client with credentials, then call the Google Calendar API.
+//   //authorize(JSON.parse(content), listEvents);
+//   authorize(JSON.parse(content), listCalendars);//---------------------------------------------------Call Calendar list---------------------------------------
+// });
 
 /**
  * Create an OAuth2 client with the given credentials, and then execute the
@@ -26,10 +30,19 @@ fs.readFile('credentials.json', (err, content) => {
  * @param {Object} credentials The authorization client credentials.
  * @param {function} callback The callback to call with the authorized client.
  */
+function callWithAuth(callback){
+  fs.readFile('credentials.json', (err, content) => {
+    if (err) return console.log('Error loading client secret file:', err);
+    // Authorize a client with credentials, then call the Google Calendar API.
+    //authorize(JSON.parse(content), listEvents);
+    authorize(JSON.parse(content), callback);//---------------------------------------------------Call Calendar list---------------------------------------
+  });
+}
+
 function authorize(credentials, callback) {
-  const {client_secret, client_id, redirect_uris} = credentials.installed;
+  const { client_secret, client_id, redirect_uris } = credentials.installed;
   const oAuth2Client = new google.auth.OAuth2(
-      client_id, client_secret, redirect_uris[0]);
+    client_id, client_secret, redirect_uris[0]);
 
   // Check if we have previously stored a token.
   fs.readFile(TOKEN_PATH, (err, token) => {
@@ -75,7 +88,7 @@ function getAccessToken(oAuth2Client, callback) {
  * @param {google.auth.OAuth2} auth An authorized OAuth2 client.
  */
 function listEvents(auth) {
-  const calendar = google.calendar({version: 'v3', auth});
+  const calendar = google.calendar({ version: 'v3', auth });
   calendar.events.list({
     calendarId: 'primary',
     timeMin: (new Date()).toISOString(),
@@ -97,22 +110,71 @@ function listEvents(auth) {
   });
 }
 
+function setGlobalCalID(foundItem) {
+  calendarsID = foundItem.id;
+}
 
-function listCalendars(auth) {
-  const calendar = google.calendar({version: 'v3', auth});
-  calendar.calendarList.list({
+function listCalendars(auth) {//gets and lists all calendars. Next place is to add logic - if name == timetable-calendar-name then return id, else make one?
+  const authedCal = google.calendar({ version: 'v3', auth });
+  authedCal.calendarList.list({
+    maxResults: 100,
+    //minAccessRole: "owner" //makes sure it is your own personal calendar, personally tailored to you. 
+  }, (err, res) => {
+    if (err) return console.log('The API returned an error: ' + err);
+    const cals = res.data.items;
+    console.log(JSON.stringify(cals.summary));
+    if (cals.length) {
+      cals.map((calendarList, i) => {
+        console.log("Looping");
+        if (calendarList.summary == timetableName) {
+          console.log("Found calendar");
+          setGlobalCalID(calendarList);
+          return;
+        }
+        console.log(`${calendarList.summary}`);
+      });
+      console.log("Calendar not found!");
+    }
+    console.log("Creating Calendar");
+    callWithAuth(createAndFindCalendar);//finds the created calendar
+    console.log(calendarsID);
+  });
+  // if (calendarsID.equals("") || id == null){
+  //   throw new exception("Couldn't make or get the calendar!");
+  // }
+}
+
+function createAndFindCalendar(auth) {
+  const authedCal = google.calendar({ version: 'v3', auth });
+  authedCal.calendars.insert({
+    "resource": {
+      "summary": timetableName
+    }
+  });
+  console.log("calling new calendar list")//-----------------------------------------------------Issue-Newly created Calendar not showing
+  
+  authedCal.calendarList.list({
     maxResults: 10,
     minAccessRole: "owner" //makes sure it is your own personal calendar, personally tailored to you. 
   }, (err, res) => {
     if (err) return console.log('The API returned an error: ' + err);
     const cals = res.data.items;
+
+    console.log(JSON.stringify(cals));
+    console.log("---")
     if (cals.length) {
       cals.map((calendarList, i) => {
+        console.log("Looping");
+        if (calendarList.summary == timetableName) {
+          console.log("Found calendar");
+          calendarsID = calendarList.id;
+          return;
+        }
         console.log(`${calendarList.summary}`);
       });
-    } else {
-      console.log('No upcoming events found.');
+      console.log("Calendar not found -- Big problem my friend!");
     }
   });
 }
+
 //getC.listCalendars();
