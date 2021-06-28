@@ -5,6 +5,7 @@ const fs = require('fs');
 const readline = require('readline');
 const { google } = require('googleapis');
 const { exception } = require('console');
+const { rejects } = require('assert');
 const timetableName = "Timetable-Wintech";
 var calendarsID;
 
@@ -118,11 +119,10 @@ function listCalendars(auth) {//gets and lists all calendars. Next place is to a
   const authedCal = google.calendar({ version: 'v3', auth });
   authedCal.calendarList.list({
     maxResults: 100,
-    //minAccessRole: "owner" //makes sure it is your own personal calendar, personally tailored to you. 
   }, (err, res) => {
     if (err) return console.log('The API returned an error: ' + err);
     const cals = res.data.items;
-    console.log(JSON.stringify(cals.summary));
+    console.log(JSON.stringify(cals));
     var found = false;
     if (cals.length) {
 
@@ -137,34 +137,35 @@ function listCalendars(auth) {//gets and lists all calendars. Next place is to a
         console.log(`${calendarList.summary}`);
       });
     }
-    
-    if (!found){
+
+    if (!found) {
       console.log("Calendar not found - Creating Calendar");
       callWithAuth(createAndFindCalendar);//finds the created or creates it calendar
     }
     console.log(calendarsID);
   });
-  // if (calendarsID.equals("") || id == null){
-  //   throw new exception("Couldn't make or get the calendar!");
-  // }
 }
 
 function createAndFindCalendar(auth) {
   const authedCal = google.calendar({ version: 'v3', auth });
+
   authedCal.calendars.insert({
     "resource": {
       "summary": timetableName
     }
   });
-  console.log("calling new calendar list")//-----------------------------------------------------Issue-Newly created Calendar not showing- possibly issue with async? Establish insert as a promise.
+
+  console.log("calling new calendar list")//-----------------------------------------------------Need to set up a promise
+
+
 
   authedCal.calendarList.list({
     maxResults: 10,
-    minAccessRole: "owner" //makes sure it is your own personal calendar, personally tailored to you. 
+
   }, (err, res) => {
     if (err) return console.log('The API returned an error: ' + err);
     const cals = res.data.items;
-
+    var found = false;
     console.log(JSON.stringify(cals));
     console.log("---")
     if (cals.length) {
@@ -173,13 +174,19 @@ function createAndFindCalendar(auth) {
         if (calendarList.summary == timetableName) {
           console.log("Found calendar");
           calendarsID = calendarList.id;
-          return;
+          found = true;
         }
         console.log(`${calendarList.summary}`);
       });
-      console.log("Calendar not found -- Big problem my friend!");
+      if (found) {
+        console.log("Calendar found:" + calendarsID);
+      } else {
+        console.log("Calendar not found -- Big problem my friend!");
+      }
+
     }
   });
+
 }
 
 //getC.listCalendars();
