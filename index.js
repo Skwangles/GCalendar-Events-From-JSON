@@ -147,38 +147,38 @@ function listCalendars(auth) {//gets and lists all calendars. Next place is to a
 }
 
 function createAndFindCalendar(auth) {
-  const authedCal = google.calendar({ version: 'v3', auth });
-
-  authedCal.calendars.insert({
+  const authenticatedCalendar = google.calendar({ version: 'v3', auth });
+const insertPromise = new Promise((resolve,reject)=>{
+  authenticatedCalendar.calendars.insert({
     "resource": {
       "summary": timetableName
     }
   });
+  resolve("Calendar Created");
+});
+insertPromise.then((message) =>{
+  console.log("calling new calendar list");//-----------------------------------------------------Need to set up a promise
 
-  console.log("calling new calendar list")//-----------------------------------------------------Need to set up a promise
-
-
-
-  authedCal.calendarList.list({
-    maxResults: 10,
-
-  }, (err, res) => {
-    if (err) return console.log('The API returned an error: ' + err);
-    const cals = res.data.items;
-    var found = false;
-    console.log(JSON.stringify(cals));
+  authenticatedCalendar.calendarList.list({
+    maxResults: 10
+    
+  }, (error, resource) => {
+    if (error) return console.log('The API returned an error: ' + error);
+    const calendarResource = resource.data.items;
+    var isFound = false;
+    console.log(JSON.stringify(calendarResource));
     console.log("---")
-    if (cals.length) {
-      cals.map((calendarList, i) => {
+    if (calendarResource.length) {
+      calendarResource.map((calendarList, i) => {
         console.log("Looping");
         if (calendarList.summary == timetableName) {
           console.log("Found calendar");
           calendarsID = calendarList.id;
-          found = true;
+          isFound = true;
         }
         console.log(`${calendarList.summary}`);
       });
-      if (found) {
+      if (isFound) {
         console.log("Calendar found:" + calendarsID);
       } else {
         console.log("Calendar not found -- Big problem my friend!");
@@ -186,7 +186,7 @@ function createAndFindCalendar(auth) {
 
     }
   });
-
+});
 }
 
 //getC.listCalendars();
