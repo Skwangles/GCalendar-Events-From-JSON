@@ -17,7 +17,7 @@ fs.readFile('credentials.json', (err, content) => {
   if (err) return console.log('Error loading client secret file:', err);
   // Authorize a client with credentials, then call the Google Calendar API.
   authorize(JSON.parse(content), listEvents);
-  authorize(JSON.parse(content), listCalendars);
+  authorize(JSON.parse(content), listCalendars);//---------------------------------------------------Call Calendar list---------------------------------------
 });
 
 /**
@@ -99,21 +99,19 @@ function listEvents(auth) {
 
 
 function listCalendars(auth) {
+  const calendarList = google.calendarList({version: 'v3', auth});
   const calendar = google.calendar({version: 'v3', auth});
-  calendar.events.list({
-    calendarId: 'primary',
-    timeMin: (new Date()).toISOString(),
+  calendarList.list({
     maxResults: 10,
-    singleEvents: true,
-    orderBy: 'startTime',
+    minAccessRole: "owner" //makes sure it is your own personal calendar, personally tailored to you. 
+    
   }, (err, res) => {
     if (err) return console.log('The API returned an error: ' + err);
-    const events = res.data.items;
-    if (events.length) {
+    const cals = res.data.items;
+    if (cals.length) {
       console.log('Upcoming 10 events:');
-      events.map((event, i) => {
-        const start = event.start.dateTime || event.start.date;
-        console.log(`${start} - ${event.summary}`);
+      cals.map((event, i) => {
+        console.log(`${cals.summary}`);
       });
     } else {
       console.log('No upcoming events found.');
