@@ -282,7 +282,10 @@ function AddEvent(auth, details) {
           "dateTime": details[itemIncrement].endTime,//find way to increase dateTime by 1
           "timeZone": timeZone
 
-        }
+        },
+        "recurrence":[
+          "RRULE:FREQ=WEEKLY;COUNT=12"
+        ]
 
       }
     }, (err, res) => {
