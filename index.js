@@ -9,7 +9,7 @@ const timetableCalendarName = "Timetable-Wintech";
 const timeZone = "Pacific/Auckland";
 var timetableCalendarID;
 let findCalendarLoopCount = 0;
-var defaultRecurranceCount = 12;//defines how many recurring instances of an event is
+var defaultRecurranceCount = 0;//defines how many recurring instances of an event is
 
 
 //
@@ -23,7 +23,7 @@ var evenDetailList = [{
   "time": new Date(2021, 5, 29, 9, 30, 0, 0).toISOString(),
   "endTime": new Date(2021, 5, 29, 10, 30, 0, 0).toISOString(),
   "location": "Yo Mama's house",
-  "recurrence": 10
+  "recurrence": 2
 }, {
 
   "name": "second event",
@@ -38,11 +38,12 @@ var evenDetailList = [{
 //^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 //
 // If modifying these scopes, delete token.json.
-const SCOPES = ['https://www.googleapis.com/auth/calendar.readonly', 'https://www.googleapis.com/auth/calendar', 'https://www.googleapis.com/auth/calendar.events'];
+const SCOPES = ['https://www.googleapis.com/auth/calendar'];
 // The file token.json stores the user's access and refresh tokens, and is
 // created automatically when the authorization flow completes for the first
 // time.
 const TOKEN_PATH = 'token.json';
+//
 //
 // Load client secrets from a local file 
 callWithAuth(listCalendars);//--------------------------------------------------------------------PROGRAM RUN-------------------------
@@ -286,7 +287,7 @@ function AddEvent(auth, details) {
 
         },
         "recurrence": [
-          "RRULE:FREQ=WEEKLY;COUNT=" + (details[itemIncrement].recurrence == undefined ? defaultRecurranceCount : details[itemIncrement].recurrence)
+          "RRULE:FREQ=WEEKLY;COUNT=" + (details[itemIncrement].recurrence == undefined ? defaultRecurranceCount : details[itemIncrement].recurrence)//change from WEEKLY to DAILY if you want to change the recurrence to, funnily enough, daily.
         ]
 
       }
