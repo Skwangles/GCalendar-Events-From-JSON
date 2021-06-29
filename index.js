@@ -9,32 +9,46 @@ const timetableCalendarName = "Timetable-Wintech";
 const timeZone = "Pacific/Auckland";
 var timetableCalendarID;
 let findCalendarLoopCount = 0;
+var defaultRecurranceCount = 12;//defines how many recurring instances of an event is
+
+
+//
+//TO CREATE MULTIPLE EVENTS ADD THEIR DETAILS TO THE FOLLOWING LIST-----------------------------------------
+//
+//list JSON contains .name, .start, .location, .time (dateTime object), .endTime, recurrence(Optional: default 12)
+
 var evenDetailList = [{
 
   "name": "first event",
   "time": new Date(2021, 5, 29, 9, 30, 0, 0).toISOString(),
   "endTime": new Date(2021, 5, 29, 10, 30, 0, 0).toISOString(),
   "location": "Yo Mama's house",
-
+  "recurrence": 10
 }, {
 
   "name": "second event",
   "time": new Date(2021, 5, 29, 12, 30, 0, 0).toISOString(),
   "endTime": new Date(2021, 5, 29, 13, 30, 0, 0).toISOString(),
-  "location": "Yo Mama's house again",
+  "location": "Yo Mama's house again"
 
 }
 ];
-
+//
+//
+//^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+//
 // If modifying these scopes, delete token.json.
 const SCOPES = ['https://www.googleapis.com/auth/calendar.readonly', 'https://www.googleapis.com/auth/calendar', 'https://www.googleapis.com/auth/calendar.events'];
 // The file token.json stores the user's access and refresh tokens, and is
 // created automatically when the authorization flow completes for the first
 // time.
 const TOKEN_PATH = 'token.json';
-
-// Load client secrets from a local file.
-callWithAuth(listCalendars);
+//
+// Load client secrets from a local file 
+callWithAuth(listCalendars);//--------------------------------------------------------------------PROGRAM RUN-------------------------
+//
+//
+//
 
 /**
  * Create an OAuth2 client with the given credentials, and then execute the
@@ -42,25 +56,19 @@ callWithAuth(listCalendars);
  * @param {Object} credentials The authorization client credentials.
  * @param {function} callback The callback to call with the authorized client.
  */
-function callWithAuth(callback) {
+function callWithAuth(callback) {//calls passed function with auth token ---- Used for calling Calendar operations
   fs.readFile('credentials.json', (err, content) => {
     if (err) return console.log('Error loading client secret file:', err);
     // Authorize a client with credentials, then call the Google Calendar API.
-    //authorize(JSON.parse(content), listEvents);
-    authorize(JSON.parse(content), callback);//---------------------------------------------------Call Calendar list---------------------------------------
+    authorize(JSON.parse(content), callback);
   });
 }
-//details JSON contains .name, .start, .location, .time (dateTime object), .endTime
 
-
-
-
-function createEventWithAuth(details, callback) {
+function createEventWithAuth(details, callback) {//Creates Events in calendar
   fs.readFile('credentials.json', (err, content) => {
     if (err) return console.log('Error loading client secret file:', err);
     // Authorize a client with credentials, then call the Google Calendar API.
-    //authorize(JSON.parse(content), listEvents);
-    authorizeWithEvent(JSON.parse(content), details, callback);//---------------------------------------------------Call Calendar list---------------------------------------
+    authorizeWithEvent(JSON.parse(content), details, callback);
   });
 }
 
@@ -121,32 +129,7 @@ function getAccessToken(oAuth2Client, callback) {
   });
 }
 
-/**
- * Lists the next 10 events on the user's primary calendar.
- * @param {google.auth.OAuth2} auth An authorized OAuth2 client.
- */
-function listEvents(auth) {
-  const calendar = google.calendar({ version: 'v3', auth });
-  calendar.events.list({
-    calendarId: 'primary',
-    timeMin: (new Date()).toISOString(),
-    maxResults: 10,
-    singleEvents: true,
-    orderBy: 'startTime',
-  }, (err, res) => {
-    if (err) return console.log('The API returned an error: ' + err);
-    const events = res.data.items;
-    if (events.length) {
-      console.log('Upcoming 10 events:');
-      events.map((event, i) => {
-        const start = event.start.dateTime || event.start.date;
-        console.log(`${start} - ${event.summary}`);
-      });
-    } else {
-      console.log('No upcoming events found.');
-    }
-  });
-}
+
 //
 //
 //
@@ -156,6 +139,9 @@ function listEvents(auth) {
 //
 //
 //
+/**
+ * @param {google.auth.OAuth2} auth An authorized OAuth2 client.
+ */
 function listCalendars(auth) {//gets and lists all calendars. Next place is to add logic - if name == timetable-calendar-name then return id, else make one?
   const authenticatedCalendar = google.calendar({ version: 'v3', auth });
   authenticatedCalendar.calendarList.list({
@@ -164,7 +150,7 @@ function listCalendars(auth) {//gets and lists all calendars. Next place is to a
     if (error) return console.log('The API returned an error: ' + error);
     const calendarResource = resource.data.items;
     console.log(JSON.stringify(calendarResource));
-    var found = false;
+    var isTimetableFound = false;
     if (calendarResource.length) {
       console.log("---looping---");
       calendarResource.map((calendarInAccount, i) => {
@@ -173,14 +159,14 @@ function listCalendars(auth) {//gets and lists all calendars. Next place is to a
           console.log("Found calendar");
           timetableCalendarID = calendarInAccount.id;
           console.log("ID=" + timetableCalendarID);
-          found = true;
+          isTimetableFound = true;
           createEventWithAuth(evenDetailList, AddEvent);
         }
         console.log(`${calendarInAccount.summary}`);
       });
     }
 
-    if (!found) {
+    if (!isTimetableFound) {
       console.log("Calendar not found - Creating Calendar");
       callWithAuth(createAndFindCalendar);//finds the created or creates it calendar
     }
@@ -222,20 +208,20 @@ function FindCalendar(auth) {//loops through list of Calendars retrieved, if fou
     authenticatedCalendar.calendarList.list({/*Add modifiers to narrow down calendars*/ }, (error, resource) => {// gets the list of calendars, then provides logic to the JSON
       if (error) return console.log('The API returned an error: ' + error);
       const calendarResource = resource.data.items;
-      var isFound = false;// exit variable
+      var isTimetableFound = false;// exit variable
       if (calendarResource.length) {
         console.log("---Looping---");
         calendarResource.map((calendarList, increment) => {//--------FINDING CALENDAR BY NAME----------
-          if (isFound) return;
+          if (isTimetableFound) return;
           if (calendarList.summary == timetableCalendarName) {
             timetableCalendarID = calendarList.id;
-            isFound = true;
+            isTimetableFound = true;
             console.log("Found Calendar at: " + calendarList.id)
           } else
             console.log("Checked: " + calendarList.summary);
         });
 
-        if (isFound) {
+        if (isTimetableFound) {
           console.log("--Calendar found:" + timetableCalendarID);
           createEventWithAuth(evenDetailList, AddEvent);
         } else {
@@ -284,7 +270,7 @@ function AddEvent(auth, details) {
 
         },
         "recurrence":[
-          "RRULE:FREQ=WEEKLY;COUNT=12"
+          "RRULE:FREQ=WEEKLY;COUNT="+ (details[itemIncrement].recurrence == undefined?defaultRecurranceCount:details[itemIncrement].recurrence)
         ]
 
       }
