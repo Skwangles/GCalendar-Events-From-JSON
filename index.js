@@ -17,7 +17,7 @@ var defaultRecurranceCount = 0;//defines how many recurring instances of an even
 //
 //list JSON contains .name, .start, .location, .time (dateTime object), .endTime, recurrence(Optional: default 12)
 
-var evenDetailList = [{
+var eventDetailList = [{
 
   "name": "first event",
   "time": new Date(2021, 5, 29, 9, 30, 0, 0).toISOString(),
@@ -29,8 +29,16 @@ var evenDetailList = [{
   "name": "second event",
   "time": new Date(2021, 5, 29, 12, 30, 0, 0).toISOString(),
   "endTime": new Date(2021, 5, 29, 13, 30, 0, 0).toISOString(),
-  "location": "Yo Mama's house again"
+  "location": "Yo Mama's house again",
 
+},
+{
+
+  "name": "third - test case",
+  "time": new Date(2021, 5, 29, 9, 30, 0, 0).toISOString(),
+  "endTime": new Date(2021, 5, 29, 10, 30, 0, 0).toISOString(),
+  "location": "Yo Mama's house",
+  "recurrence": 2
 }
 ];
 //
@@ -38,7 +46,7 @@ var evenDetailList = [{
 //^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 //
 // If modifying these scopes, delete token.json.
-const SCOPES = ['https://www.googleapis.com/auth/calendar'];
+const SCOPES = ['https://www.googleapis.com/auth/calendar', 'https://www.googleapis.com/auth/calendar.readonly', 'https://www.googleapis.com/auth/calendar.events'];
 // The file token.json stores the user's access and refresh tokens, and is
 // created automatically when the authorization flow completes for the first
 // time.
@@ -65,15 +73,15 @@ function callWithAuth(callback) {//calls passed function with auth token ---- Us
   });
 }
 
-function createEventWithAuth(details, callback) {//Creates Events in calendar
+function createEventWithAuth(details, callback, increment) {//Creates Events in calendar
   fs.readFile('credentials.json', (err, content) => {
     if (err) return console.log('Error loading client secret file:', err);
     // Authorize a client with credentials, then call the Google Calendar API.
-    authorizeWithEvent(JSON.parse(content), details, callback);
+    authorizeWithEvent(JSON.parse(content), details, callback, increment);
   });
 }
 
-function authorizeWithEvent(credentials, details, callback) {
+function authorizeWithEvent(credentials, details, callback, increment,) {
   const { client_secret, client_id, redirect_uris } = credentials.installed;
   const oAuth2Client = new google.auth.OAuth2(
     client_id, client_secret, redirect_uris[0]);
@@ -82,7 +90,7 @@ function authorizeWithEvent(credentials, details, callback) {
   fs.readFile(TOKEN_PATH, (err, token) => {
     if (err) return getAccessToken(oAuth2Client, callback);
     oAuth2Client.setCredentials(JSON.parse(token));
-    callback(oAuth2Client, details);
+    callback(oAuth2Client, details, increment);
   });
 }
 
@@ -129,8 +137,6 @@ function getAccessToken(oAuth2Client, callback) {
     });
   });
 }
-
-
 //
 //
 //
@@ -146,16 +152,15 @@ function getAccessToken(oAuth2Client, callback) {
 function listCalendars(auth) {//gets and lists all calendars. Next place is to add logic - if name == timetable-calendar-name then return id, else make one?
   const authenticatedCalendar = google.calendar({ version: 'v3', auth });
   authenticatedCalendar.calendarList.list({
-    maxResults: 100,
-  }, (error, resource) => {
+  }, (error, response) => {
     if (error) return console.log('The API returned an error: ' + error);
-    const calendarResource = resource.data.items;
-    console.log(JSON.stringify(calendarResource));
+    const calendarResource = response.data.items;
+    //console.log(JSON.stringify(calendarResource));
     var isTimetableFound = false;
-    if (calendarResource.length) {
+    if (calendarResource.length) {//loops through the list of calendars
       console.log("---looping---");
       calendarResource.map((calendarInAccount, i) => {
-
+        if (isTimetableFound) return;
         if (calendarInAccount.summary == timetableCalendarName) {
           console.log("Found calendar");
           timetableCalendarID = calendarInAccount.id;
@@ -177,7 +182,9 @@ function listCalendars(auth) {//gets and lists all calendars. Next place is to a
   });
   console.log("Finished");
 }
-
+//
+//---------------------------
+//
 
 function deleteCalendar(auth) {
   const authenticatedCalendar = google.calendar({ version: 'v3', auth });
@@ -185,10 +192,15 @@ function deleteCalendar(auth) {
     authenticatedCalendar.calendars.delete({
       "calendarId": timetableCalendarID
     })
+    timetableCalendarID = undefined;
     resolve("Deleted");
-  }).then(message =>{
-  callWithAuth(createAndFindCalendar);//finds the created or creates it calendar
-  });
+  })
+  myPromise.then(message => {
+    console.log(google.calendar({ version: 'v3', auth }));
+    callWithAuth(createAndFindCalendar);//finds the created or creates it calendar
+  }).catch(message => {
+    throw new exception("Something went wrong during the delete calendar function - promise threw");
+  });;
 }
 
 //
@@ -208,6 +220,8 @@ function createAndFindCalendar(auth) {
   waitForInsertPromise.then((message) => {
     console.log(message + " - Now making new calendar instance");
     callWithAuth(FindCalendar);
+  }).catch(message => {
+    throw new exception("Something went wrong during the create&findcalendar function - promise threw");
   });
 }
 //
@@ -219,15 +233,16 @@ function FindCalendar(auth) {//loops through list of Calendars retrieved, if fou
     console.log("Error - Cannot find calendar, cutting loop");
     throw new exception("Calendar can't be found/was not created");
   } else {
+    findCalendarLoopCount++;
     const authenticatedCalendar = google.calendar({ version: 'v3', auth });// gets JSON
     console.log("Getting new calendar list");
 
-    authenticatedCalendar.calendarList.list({/*Add modifiers to narrow down calendars*/ }, (error, resource) => {// gets the list of calendars, then provides logic to the JSON
+    authenticatedCalendar.calendarList.list({/*Add modifiers to narrow down calendars*/ }, (error, response) => {// gets the list of calendars, then provides logic to the JSON
       if (error) return console.log('The API returned an error: ' + error);
-      const calendarResource = resource.data.items;
+      const calendarResource = response.data.items;
       var isTimetableFound = false;// exit variable
-      if (calendarResource.length) {
-        console.log("---Looping---");
+      console.log("---Looping---");
+      const mypromise2 = new Promise((resolve, reject) => {
         calendarResource.map((calendarList, increment) => {//--------FINDING CALENDAR BY NAME----------
           if (isTimetableFound) return;
           if (calendarList.summary == timetableCalendarName) {
@@ -237,44 +252,37 @@ function FindCalendar(auth) {//loops through list of Calendars retrieved, if fou
           } else
             console.log("Checked: " + calendarList.summary);
         });
+        resolve("All g");
+      });
 
+      mypromise2.then(message => {
         if (isTimetableFound) {
           console.log("--Calendar found:" + timetableCalendarID);
-          createEventWithAuth(evenDetailList, AddEvent);
+          createEventWithAuth(eventDetailList, AddEvent, 0);
         } else {
           console.log("Calendar not found -- Checking again");
           callWithAuth(FindCalendar);// if not found, loop again.
         }
+      }).catch(message => {
+        throw new exception("Something went wrong during the FindCalendar function - promise threw");
+      });
 
-      }
     });
   }
 }
 
-function CombineDateAndTime(date) {
-  var timeString = date.getHours() + ':' + date.getMinutes() + ':00';
-  var ampm = date.getHours() >= 12 ? 'PM' : 'AM';
-  var year = date.getFullYear();
-  var month = date.getMonth() + 1; // Jan is 0, dec is 11
-  var day = date.getDate();
-  var dateString = '' + year + '-' + month + '-' + day;
-  var datec = dateString + 'T' + timeString;
-  var combined = new Date(datec);
-
-  return combined;
-};
 //details JSON contains .name, .location, .time (dateTime object), .endTime
-function AddEvent(auth, details) {
+function AddEvent(auth, details, itemIncrement) {
   const calendar = google.calendar({ version: 'v3', auth });
-  for (itemIncrement = 0; itemIncrement < details.length; itemIncrement++) {
-    console.log("Inserting Item " + itemIncrement + " T:" + details[itemIncrement].time + "C:" + timetableCalendarID);
 
-    if (timetableCalendarID == undefined) throw new exception("Undefined ID");
+  if (timetableCalendarID == undefined) throw new exception("Undefined ID");
+  var promise1 = new Promise((resolve, reject) => {
+    console.log("Inserting Item " + itemIncrement + " C:" + timetableCalendarID);
     calendar.events.insert({
       'calendarId': timetableCalendarID,
       'resource': {
         "summary": details[itemIncrement].name,
-        "description": details[itemIncrement].name + " at " + details.location,
+        "description": details[itemIncrement].name + " at " + details[itemIncrement].location,
         "location": details[itemIncrement].location,
 
         "start": {
@@ -284,18 +292,34 @@ function AddEvent(auth, details) {
         "end": {
           "dateTime": details[itemIncrement].endTime,//find way to increase dateTime by 1
           "timeZone": timeZone
-
         },
         "recurrence": [
-          "RRULE:FREQ=WEEKLY;COUNT=" + (details[itemIncrement].recurrence == undefined ? defaultRecurranceCount : details[itemIncrement].recurrence)//change from WEEKLY to DAILY if you want to change the recurrence to, funnily enough, daily.
+          "RRULE:FREQ=WEEKLY;COUNT=" + (details[itemIncrement].recurrence == undefined ? defaultRecurranceCount.toString() : details[itemIncrement].recurrence.toString())//change from WEEKLY to DAILY if you want to change the recurrence to, funnily enough, daily.
         ]
 
       }
     }, (err, res) => {
-      console.log(res);
-      if (err) return console.log("The Api returned and error: " + err);
-      console.log("Completed one!");
 
+      if (err) {
+        console.log("The API returned error: " + err);
+        reject(err);
+      } else {
+        resolve(res);
+      }
     });
-  }
+  });
+  //
+  //------
+  //
+  promise1.then(res => {
+    console.log("found Calendar & Created events");
+    if (itemIncrement + 1 < details.length) {
+      console.log(itemIncrement++);
+      createEventWithAuth(details, AddEvent, itemIncrement);
+    }
+
+  }).catch(err => {
+    console.log("Failed, trying again.");
+    callWithAuth(FindCalendar);
+  });
 }
