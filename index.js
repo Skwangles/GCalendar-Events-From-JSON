@@ -5,13 +5,29 @@ const fs = require('fs');
 const readline = require('readline');
 const { google } = require('googleapis');
 const { exception } = require('console');
-const { rejects } = require('assert');
-const timetableName = "Timetable-Wintech";
-var calendarsID;
-let findLoops = 0;
+const timetableCalendarName = "Timetable-Wintech";
+const timeZone = "Pacific/Auckland";
+var timetableCalendarID;
+let findCalendarLoopCount = 0;
+var evenDetailList = [{
+
+  "name": "first event",
+  "time": new Date(2021, 5, 29, 9, 30, 0, 0).toISOString(),
+  "endTime": new Date(2021, 5, 29, 10, 30, 0, 0).toISOString(),
+  "location": "Yo Mama's house",
+
+}, {
+
+  "name": "second event",
+  "time": new Date(2021, 5, 29, 12, 30, 0, 0).toISOString(),
+  "endTime": new Date(2021, 5, 29, 13, 30, 0, 0).toISOString(),
+  "location": "Yo Mama's house again",
+
+}
+];
 
 // If modifying these scopes, delete token.json.
-const SCOPES = ['https://www.googleapis.com/auth/calendar.readonly', 'https://www.googleapis.com/auth/calendar'];
+const SCOPES = ['https://www.googleapis.com/auth/calendar.readonly', 'https://www.googleapis.com/auth/calendar', 'https://www.googleapis.com/auth/calendar.events'];
 // The file token.json stores the user's access and refresh tokens, and is
 // created automatically when the authorization flow completes for the first
 // time.
@@ -32,6 +48,32 @@ function callWithAuth(callback) {
     // Authorize a client with credentials, then call the Google Calendar API.
     //authorize(JSON.parse(content), listEvents);
     authorize(JSON.parse(content), callback);//---------------------------------------------------Call Calendar list---------------------------------------
+  });
+}
+//details JSON contains .name, .start, .location, .time (dateTime object), .endTime
+
+
+
+
+function createEventWithAuth(details, callback) {
+  fs.readFile('credentials.json', (err, content) => {
+    if (err) return console.log('Error loading client secret file:', err);
+    // Authorize a client with credentials, then call the Google Calendar API.
+    //authorize(JSON.parse(content), listEvents);
+    authorizeWithEvent(JSON.parse(content), details, callback);//---------------------------------------------------Call Calendar list---------------------------------------
+  });
+}
+
+function authorizeWithEvent(credentials, details, callback) {
+  const { client_secret, client_id, redirect_uris } = credentials.installed;
+  const oAuth2Client = new google.auth.OAuth2(
+    client_id, client_secret, redirect_uris[0]);
+
+  // Check if we have previously stored a token.
+  fs.readFile(TOKEN_PATH, (err, token) => {
+    if (err) return getAccessToken(oAuth2Client, callback);
+    oAuth2Client.setCredentials(JSON.parse(token));
+    callback(oAuth2Client, details);
   });
 }
 
@@ -105,31 +147,36 @@ function listEvents(auth) {
     }
   });
 }
-
-function setGlobalCalID(foundItem) {
-  calendarsID = foundItem.id;
-}
-
+//
+//
+//
+//
+//----Alexander's API Calendar Code----
+//
+//
+//
+//
 function listCalendars(auth) {//gets and lists all calendars. Next place is to add logic - if name == timetable-calendar-name then return id, else make one?
-  const authedCal = google.calendar({ version: 'v3', auth });
-  authedCal.calendarList.list({
+  const authenticatedCalendar = google.calendar({ version: 'v3', auth });
+  authenticatedCalendar.calendarList.list({
     maxResults: 100,
-  }, (err, res) => {
-    if (err) return console.log('The API returned an error: ' + err);
-    const cals = res.data.items;
-    console.log(JSON.stringify(cals));
+  }, (error, resource) => {
+    if (error) return console.log('The API returned an error: ' + error);
+    const calendarResource = resource.data.items;
+    console.log(JSON.stringify(calendarResource));
     var found = false;
-    if (cals.length) {
+    if (calendarResource.length) {
       console.log("---looping---");
-      cals.map((calendarList, i) => {
-        
-        if (calendarList.summary == timetableName) {
+      calendarResource.map((calendarInAccount, i) => {
+
+        if (calendarInAccount.summary == timetableCalendarName) {
           console.log("Found calendar");
-          setGlobalCalID(calendarList);
-          console.log("ID=" + calendarsID);
+          timetableCalendarID = calendarInAccount.id;
+          console.log("ID=" + timetableCalendarID);
           found = true;
+          createEventWithAuth(evenDetailList, AddEvent);
         }
-        console.log(`${calendarList.summary}`);
+        console.log(`${calendarInAccount.summary}`);
       });
     }
 
@@ -137,61 +184,63 @@ function listCalendars(auth) {//gets and lists all calendars. Next place is to a
       console.log("Calendar not found - Creating Calendar");
       callWithAuth(createAndFindCalendar);//finds the created or creates it calendar
     }
-    console.log(calendarsID);
+    console.log(timetableCalendarID);
   });
+  console.log("Finished");
 }
-
+//
+//--------------------------
+//
 function createAndFindCalendar(auth) {
-  var authenticatedCalendar = google.calendar({ version: 'v3', auth });
-  const insertPromise = new Promise((resolve, reject) => {
+  const authenticatedCalendar = google.calendar({ version: 'v3', auth });//gets JSON of the calendar
+  const waitForInsertPromise = new Promise((resolve, reject) => {
     authenticatedCalendar.calendars.insert({
       "resource": {
-        "summary": timetableName
+        "summary": timetableCalendarName
       }
     });
     resolve("Calendar Created");
   });
 
-  insertPromise.then((message) => {
-    for (i = 0; i < 10000; i++) {
-      //sleep
-    }
+  waitForInsertPromise.then((message) => {
     console.log(message + " - Now making new calendar instance");
     callWithAuth(FindCalendar);
   });
 }
-
-function FindCalendar(auth) {
-  if (findLoops > 10) {
-    findLoops = 0;
+//
+//--------------------------
+//
+function FindCalendar(auth) {//loops through list of Calendars retrieved, if found to have the 
+  if (findCalendarLoopCount > 10) {//breaks infinite loop
+    findCalendarLoopCount = 0;
     console.log("Error - Cannot find calendar, cutting loop");
     throw new exception("Calendar can't be found/was not created");
   } else {
-    authenticatedCalendar = google.calendar({ version: 'v3', auth });
+    const authenticatedCalendar = google.calendar({ version: 'v3', auth });// gets JSON
     console.log("Getting new calendar list");
 
-    authenticatedCalendar.calendarList.list({}, (error, resource) => {
+    authenticatedCalendar.calendarList.list({/*Add modifiers to narrow down calendars*/ }, (error, resource) => {// gets the list of calendars, then provides logic to the JSON
       if (error) return console.log('The API returned an error: ' + error);
       const calendarResource = resource.data.items;
-      var isFound = false;
+      var isFound = false;// exit variable
       if (calendarResource.length) {
         console.log("---Looping---");
-        calendarResource.map((calendarList, increment) => {
-         if(isFound) return;
-          if (calendarList.summary == timetableName) {
-
-            calendarsID = calendarList.id;
+        calendarResource.map((calendarList, increment) => {//--------FINDING CALENDAR BY NAME----------
+          if (isFound) return;
+          if (calendarList.summary == timetableCalendarName) {
+            timetableCalendarID = calendarList.id;
             isFound = true;
             console.log("Found Calendar at: " + calendarList.id)
-          }else
-          console.log("Checked: "+ calendarList.summary);
+          } else
+            console.log("Checked: " + calendarList.summary);
         });
 
         if (isFound) {
-          console.log("--Calendar found:" + calendarsID);
+          console.log("--Calendar found:" + timetableCalendarID);
+          createEventWithAuth(evenDetailList, AddEvent);
         } else {
           console.log("Calendar not found -- Checking again");
-          callWithAuth(FindCalendar);//------------------------------------------------------This will create an infinite loop, 
+          callWithAuth(FindCalendar);// if not found, loop again.
         }
 
       }
@@ -199,4 +248,48 @@ function FindCalendar(auth) {
   }
 }
 
-//getC.listCalendars();
+function CombineDateAndTime(date) {
+  var timeString = date.getHours() + ':' + date.getMinutes() + ':00';
+  var ampm = date.getHours() >= 12 ? 'PM' : 'AM';
+  var year = date.getFullYear();
+  var month = date.getMonth() + 1; // Jan is 0, dec is 11
+  var day = date.getDate();
+  var dateString = '' + year + '-' + month + '-' + day;
+  var datec = dateString + 'T' + timeString;
+  var combined = new Date(datec);
+
+  return combined;
+};
+//details JSON contains .name, .location, .time (dateTime object), .endTime
+function AddEvent(auth, details) {
+  const calendar = google.calendar({ version: 'v3', auth });
+  for (itemIncrement = 0; itemIncrement < details.length; itemIncrement++) {
+    console.log("Inserting Item " + itemIncrement + " T:" + details[itemIncrement].time + "C:" +  timetableCalendarID);
+    
+    if (timetableCalendarID == undefined) throw new exception("Undefined ID");
+    calendar.events.insert({
+      'calendarId': timetableCalendarID,
+      'resource': {
+        "summary": details[itemIncrement].name,
+        "description": details[itemIncrement].name + " at " + details.location,
+        "location": details[itemIncrement].location,
+
+        "start": {
+          "dateTime": details[itemIncrement].time,
+          "timeZone": timeZone
+        },
+        "end": {
+          "dateTime": details[itemIncrement].endTime,//find way to increase dateTime by 1
+          "timeZone": timeZone
+
+        }
+
+      }
+    }, (err, res) => {
+      console.log(res);
+      if (err) return console.log("The Api returned and error: "+ err);
+      console.log("Completed one!");
+
+    });
+  }
+}
