@@ -160,7 +160,7 @@ function listCalendars(auth) {//gets and lists all calendars. Next place is to a
           timetableCalendarID = calendarInAccount.id;
           console.log("ID=" + timetableCalendarID);
           isTimetableFound = true;
-          createEventWithAuth(evenDetailList, AddEvent);
+          // createEventWithAuth(evenDetailList, AddEvent);
         }
         console.log(`${calendarInAccount.summary}`);
       });
@@ -169,11 +169,27 @@ function listCalendars(auth) {//gets and lists all calendars. Next place is to a
     if (!isTimetableFound) {
       console.log("Calendar not found - Creating Calendar");
       callWithAuth(createAndFindCalendar);//finds the created or creates it calendar
+    } else {
+      callWithAuth(deleteCalendar);//deletes then creates calendar
     }
     console.log(timetableCalendarID);
   });
   console.log("Finished");
 }
+
+
+function deleteCalendar(auth) {
+  const authenticatedCalendar = google.calendar({ version: 'v3', auth });
+  const myPromise = new Promise((resolve, reject) => {
+    authenticatedCalendar.calendars.delete({
+      "calendarId": timetableCalendarID
+    })
+    resolve("Deleted");
+  }).then(message =>{
+  callWithAuth(createAndFindCalendar);//finds the created or creates it calendar
+  });
+}
+
 //
 //--------------------------
 //
@@ -250,8 +266,8 @@ function CombineDateAndTime(date) {
 function AddEvent(auth, details) {
   const calendar = google.calendar({ version: 'v3', auth });
   for (itemIncrement = 0; itemIncrement < details.length; itemIncrement++) {
-    console.log("Inserting Item " + itemIncrement + " T:" + details[itemIncrement].time + "C:" +  timetableCalendarID);
-    
+    console.log("Inserting Item " + itemIncrement + " T:" + details[itemIncrement].time + "C:" + timetableCalendarID);
+
     if (timetableCalendarID == undefined) throw new exception("Undefined ID");
     calendar.events.insert({
       'calendarId': timetableCalendarID,
@@ -269,14 +285,14 @@ function AddEvent(auth, details) {
           "timeZone": timeZone
 
         },
-        "recurrence":[
-          "RRULE:FREQ=WEEKLY;COUNT="+ (details[itemIncrement].recurrence == undefined?defaultRecurranceCount:details[itemIncrement].recurrence)
+        "recurrence": [
+          "RRULE:FREQ=WEEKLY;COUNT=" + (details[itemIncrement].recurrence == undefined ? defaultRecurranceCount : details[itemIncrement].recurrence)
         ]
 
       }
     }, (err, res) => {
       console.log(res);
-      if (err) return console.log("The Api returned and error: "+ err);
+      if (err) return console.log("The Api returned and error: " + err);
       console.log("Completed one!");
 
     });
