@@ -7,52 +7,52 @@ const { google } = require('googleapis');
 const { exception } = require('console');
 const timetableCalendarName = "Timetable-Wintech";
 const timeZone = "Pacific/Auckland";
+var eventDetailList;
 var timetableCalendarID;
 let findCalendarLoopCount = 0;
 var defaultRecurranceCount = 0;//defines how many recurring instances of an event is
 
+//Files in System
+const TIMETABLE_PATH = 'timetable.json';
+const TOKEN_PATH = 'token.json';
 
-//
+
 //TO CREATE MULTIPLE EVENTS ADD THEIR DETAILS TO THE FOLLOWING LIST-----------------------------------------
 //
 //list JSON contains .name, .start, .location, .time (dateTime object), .endTime, recurrence(Optional: default 12)
-
-var eventDetailList = [{
-
-  "name": "first event",
-  "time": new Date(2021, 5, 29, 9, 30, 0, 0).toISOString(),
-  "endTime": new Date(2021, 5, 29, 10, 30, 0, 0).toISOString(),
-  "location": "Yo Mama's house",
-  "recurrence": 2
-}, {
-
-  "name": "second event",
-  "time": new Date(2021, 5, 29, 12, 30, 0, 0).toISOString(),
-  "endTime": new Date(2021, 5, 29, 13, 30, 0, 0).toISOString(),
-  "location": "Yo Mama's house again",
-
-},
-{
-
-  "name": "third - test case",
-  "time": new Date(2021, 5, 29, 9, 30, 0, 0).toISOString(),
-  "endTime": new Date(2021, 5, 29, 10, 30, 0, 0).toISOString(),
-  "location": "Yo Mama's house",
-  "recurrence": 2
-}
-];
+//
+//var eventDetailList = [{
+//
+//   "name": "",
+//   "time": new Date(2021, 0, 0, 0, 0, 0, 0).toISOString(),
+//   "endTime": new Date(2021, 0, 0, 0, 0, 0, 0).toISOString(),
+//   "location": "",
+//   "recurrence": 2
+// }, {
 //
 //
-//^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-//
+//----------NOTE: Read in from file has NOT been tested, a hardcoded JSON value was previously used. 
+
+
 // If modifying these scopes, delete token.json.
 const SCOPES = ['https://www.googleapis.com/auth/calendar', 'https://www.googleapis.com/auth/calendar.readonly', 'https://www.googleapis.com/auth/calendar.events'];
 // The file token.json stores the user's access and refresh tokens, and is
 // created automatically when the authorization flow completes for the first
 // time.
-const TOKEN_PATH = 'token.json';
 //
 //
+
+//Load client timetable variables from localfile
+get_timetable();
+
+function get_timetable(){
+  fs.readFile(TIMETABLE_PATH, (err, content) => {
+   if (err) return console.log('Error loading Timetable JSON:', err);
+    eventDetailList = JSON.parse(content)
+    
+     });
+ }
+
 // Load client secrets from a local file 
 callWithAuth(listCalendars);//--------------------------------------------------------------------PROGRAM RUN-------------------------
 //
